@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spark Quiz — Play</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Poppins:wght@400;500;600&display=swap');
+:root{
+  --ink:#14132A; --ink-2:#1D1B3A; --violet:#6C4CE0; --violet-2:#8B72F0;
+  --gold:#F5C518; --coral:#FF5C72; --mint:#33D9B2; --sky:#3AB0FF; --cloud:#F7F5FF; --muted:#A6A2C8;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Poppins',sans-serif;background:var(--ink);color:var(--cloud);}
+.stage{max-width:460px;margin:0 auto;min-height:100vh;background:linear-gradient(180deg,var(--ink) 0%,var(--ink-2) 100%);padding:20px 18px 32px;position:relative;overflow:hidden;}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.brand{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:20px;letter-spacing:.3px;}
+.brand span{color:var(--gold);}
+.streak{display:flex;align-items:center;gap:6px;background:rgba(245,197,24,.12);border:1px solid rgba(245,197,24,.35);padding:6px 12px;border-radius:20px;font-weight:600;font-size:13px;color:var(--gold);}
+.meta-row{display:flex;justify-content:space-between;align-items:center;margin:6px 0 18px;}
+.progress-track{flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:6px;margin-right:14px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--mint),var(--sky));border-radius:6px;transition:width .4s ease;}
+.timer-ring{position:relative;width:44px;height:44px;flex-shrink:0;}
+.timer-ring svg{transform:rotate(-90deg);}
+.timer-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;}
+.qcard{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:20px 18px;margin-bottom:16px;}
+.qtext{font-family:'Baloo 2',sans-serif;font-size:21px;font-weight:700;line-height:1.35;}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.answer{border-radius:14px;padding:16px 14px;font-weight:600;font-size:15px;cursor:pointer;border:none;color:var(--cloud);text-align:left;}
+.answer:active{transform:scale(.97);}
+.answer:disabled{cursor:default;}
+.opt-0{background:linear-gradient(135deg,#7A5CE8,#5B3FC4);}
+.opt-1{background:linear-gradient(135deg,#3FC9A6,#1D9E75);}
+.opt-2{background:linear-gradient(135deg,#4FB0F5,#2D7FCB);}
+.opt-3{background:linear-gradient(135deg,#F58A3F,#D85A30);}
+.answer.correct{outline:3px solid var(--mint);}
+.answer.wrong{outline:3px solid var(--coral);opacity:.55;}
+.reveal{display:none;text-align:center;margin:18px 0 6px;}
+.reveal.show{display:block;}
+.reveal .big{font-family:'Baloo 2',sans-serif;font-size:26px;font-weight:800;}
+.reveal.correct-msg .big{color:var(--mint);}
+.reveal.wrong-msg .big{color:var(--coral);}
+.reveal .sub{color:var(--muted);font-size:13px;margin-top:4px;}
+.board{display:none;}
+.board.show{display:block;}
+.board-title{font-family:'Baloo 2',sans-serif;font-size:20px;font-weight:700;margin-bottom:12px;}
+.row{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border-radius:12px;padding:10px 12px;margin-bottom:8px;}
+.rank{width:22px;text-align:center;font-weight:700;color:var(--gold);font-family:'Baloo 2',sans-serif;}
+.name{flex:1;font-weight:600;font-size:14px;}
+.pts{font-weight:700;font-size:14px;color:var(--mint);}
+.row.you{border:1px solid var(--violet-2);background:rgba(108,76,224,.14);}
+.podium{display:none;align-items:flex-end;justify-content:center;gap:10px;height:170px;}
+.podium.show{display:flex;}
+.pbar{width:80px;border-radius:10px 10px 0 0;display:flex;flex-direction:column;align-items:center;padding-top:10px;font-weight:700;font-family:'Baloo 2',sans-serif;}
+.p1{height:150px;background:linear-gradient(180deg,var(--gold),#C99A00);color:#3A2C00;}
+.p2{height:110px;background:linear-gradient(180deg,#C7C9D9,#8E90A6);color:#26273A;}
+.p3{height:85px;background:linear-gradient(180deg,#E3A16B,#B06B34);color:#3A2000;}
+.waitmsg{text-align:center;color:var(--muted);margin-top:60px;}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="topbar">
+    <div class="brand">Spark <span>Quiz</span></div>
+    <div class="streak">🔥 <span id="streakNum">0</span> streak</div>
+  </div>
+  <div class="meta-row">
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="timer-ring">
+      <svg width="44" height="44"><circle cx="22" cy="22" r="18" stroke="rgba(255,255,255,.1)" stroke-width="4" fill="none"/><circle cx="22" cy="22" r="18" stroke="var(--mint)" stroke-width="4" fill="none" stroke-dasharray="113" stroke-dashoffset="0" id="timerArc"/></svg>
+      <div class="timer-num" id="timerNum">--</div>
+    </div>
+  </div>
+
+  <div id="questionArea" style="display:none;">
+    <div class="qcard">
+      <div class="qtext" id="qtext"></div>
+    </div>
+    <div class="answers" id="answers"></div>
+  </div>
+
+  <div class="reveal" id="reveal">
+    <div class="big" id="revealText"></div>
+    <div class="sub" id="revealSub"></div>
+  </div>
+
+  <div class="board" id="board">
+    <div class="board-title" id="boardTitle">Standings</div>
+    <div id="boardRows"></div>
+  </div>
+
+  <div class="podium" id="podium"></div>
+  <div class="waitmsg" id="waitmsg">Waiting for the next question…</div>
+</div>
+
+<script>
+const pin=sessionStorage.getItem('spark_pin');
+const playerToken=sessionStorage.getItem('spark_token');
+if(!pin || !playerToken){ window.location.href='/join.html'; }
+
+let ws=null;
+let currentAnswers=[];
+let timerInterval=null;
+let questionStartTime=0;
+let totalTime=0;
+
+function connectSocket(){
+  const proto = location.protocol==='https:' ? 'wss' : 'ws';
+  ws=new WebSocket(proto+'://'+location.host+'/ws');
+  ws.onopen=()=>{ ws.send(JSON.stringify({type:'join_channel', role:'player', pin, playerToken})); };
+  ws.onmessage=(evt)=>{
+    const msg=JSON.parse(evt.data);
+    if(msg.type==='question_started') onQuestion(msg);
+    if(msg.type==='answer_ack') onAck(msg);
+    if(msg.type==='question_locked') onLocked(msg);
+    if(msg.type==='leaderboard_update') onLeaderboard(msg);
+    if(msg.type==='game_ended') onEnded(msg);
+  };
+}
+
+function onQuestion(msg){
+  document.getElementById('waitmsg').style.display='none';
+  document.getElementById('board').classList.remove('show');
+  document.getElementById('podium').classList.remove('show');
+  document.getElementById('reveal').classList.remove('show');
+  document.getElementById('questionArea').style.display='block';
+
+  document.getElementById('qtext').textContent=msg.question.text;
+  document.getElementById('progressFill').style.width=Math.round((msg.index+1)/msg.total*100)+'%';
+  currentAnswers=msg.question.answers;
+
+  const wrap=document.getElementById('answers');
+  wrap.innerHTML='';
+  msg.question.answers.forEach((label,i)=>{
+    const btn=document.createElement('button');
+    btn.className='answer opt-'+i;
+    btn.textContent=label;
+    btn.onclick=()=>pick(i,btn);
+    wrap.appendChild(btn);
+  });
+
+  totalTime=msg.question.timeLimit;
+  let remaining=totalTime;
+  questionStartTime=Date.now();
+  document.getElementById('timerNum').textContent=remaining;
+  clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{
+    remaining--;
+    document.getElementById('timerNum').textContent=Math.max(0,remaining);
+    const circumference=113;
+    document.getElementById('timerArc').setAttribute('stroke-dashoffset', circumference*(1-remaining/totalTime));
+    if(remaining<=0) clearInterval(timerInterval);
+  },1000);
+}
+
+function pick(index, btn){
+  document.querySelectorAll('#answers .answer').forEach(b=>b.disabled=true);
+  const elapsedMs=Date.now()-questionStartTime;
+  const timeRemainingMs=Math.max(0,totalTime*1000-elapsedMs);
+  ws.send(JSON.stringify({type:'submit_answer', answerIndex:index, timeRemainingMs}));
+  btn.dataset.picked='true';
+}
+
+function onAck(msg){
+  clearInterval(timerInterval);
+  const picked=document.querySelector('#answers .answer[data-picked="true"]');
+  if(picked){ picked.classList.add(msg.correct?'correct':'wrong'); }
+  const reveal=document.getElementById('reveal');
+  reveal.classList.add('show', msg.correct?'correct-msg':'wrong-msg');
+  document.getElementById('revealText').textContent=msg.correct?'Correct!':'Not quite';
+  document.getElementById('revealSub').textContent=msg.correct? ('Score: '+msg.score.toLocaleString()) : 'Better luck next one';
+  if(msg.correct){
+    const s=document.getElementById('streakNum');
+    s.textContent=parseInt(s.textContent)+1;
+  } else {
+    document.getElementById('streakNum').textContent='0';
+  }
+}
+
+function onLocked(msg){
+  // if the player never answered in time, still show which was correct
+  document.querySelectorAll('#answers .answer').forEach((b,i)=>{
+    b.disabled=true;
+    if(i===msg.correctIndex) b.classList.add('correct');
+  });
+}
+
+function onLeaderboard(msg){
+  document.getElementById('questionArea').style.display='none';
+  document.getElementById('reveal').classList.remove('show');
+  document.getElementById('board').classList.add('show');
+  const rows=document.getElementById('boardRows');
+  rows.innerHTML='';
+  msg.leaderboard.slice(0,5).forEach(p=>{
+    const row=document.createElement('div');
+    row.className='row';
+    row.innerHTML='<span class="rank">'+p.rank+'</span><span class="name">'+p.avatar+' '+p.name+'</span><span class="pts">'+p.points.toLocaleString()+'</span>';
+    rows.appendChild(row);
+  });
+}
+
+function onEnded(msg){
+  document.getElementById('board').classList.remove('show');
+  document.getElementById('podium').classList.add('show');
+  const pod=document.getElementById('podium');
+  pod.innerHTML='';
+  const order=[1,0,2], classes=['p2','p1','p3'];
+  order.forEach((idx,slot)=>{
+    const p=msg.leaderboard[idx];
+    if(!p) return;
+    const bar=document.createElement('div');
+    bar.className='pbar '+classes[slot];
+    bar.innerHTML=p.avatar+' '+p.name+'<br>'+(idx+1)+(idx===0?'st':idx===1?'nd':'rd');
+    pod.appendChild(bar);
+  });
+}
+
+connectSocket();
+</script>
+</body>
+</html>

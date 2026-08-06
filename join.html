@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spark Quiz — Join</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap');
+:root{
+  --ink:#14132A; --panel:#1D1B3A; --card:#242145; --violet:#6C4CE0; --violet-2:#8B72F0;
+  --gold:#F5C518; --coral:#FF5C72; --mint:#33D9B2; --sky:#3AB0FF; --cloud:#F7F5FF; --muted:#A6A2C8; --line:rgba(255,255,255,.09);
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Poppins',sans-serif;background:var(--ink);color:var(--cloud);min-height:100vh;}
+.page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.card{width:100%;max-width:420px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:36px 32px;text-align:center;}
+.brand{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:26px;margin-bottom:6px;}
+.brand span{color:var(--gold);}
+.tagline{color:var(--muted);font-size:13px;margin-bottom:28px;}
+.step{display:none;}
+.step.active{display:block;}
+input[type=text]{
+  width:100%;background:var(--card);border:1px solid var(--line);color:var(--cloud);border-radius:12px;
+  padding:14px 16px;font-family:'Baloo 2',sans-serif;font-size:20px;text-align:center;letter-spacing:2px;margin-bottom:12px;}
+input[type=text]::placeholder{color:var(--muted);letter-spacing:normal;font-family:'Poppins',sans-serif;font-size:15px;}
+input[type=text]:focus{outline:none;border-color:var(--violet-2);}
+.btn{width:100%;padding:14px;border-radius:12px;border:none;font-weight:700;font-size:15px;cursor:pointer;font-family:'Poppins',sans-serif;background:var(--violet);color:#fff;margin-top:4px;}
+.btn:active{transform:scale(.98);}
+.btn:disabled{opacity:.5;cursor:default;}
+.error{color:var(--coral);font-size:12px;margin-top:8px;min-height:16px;}
+.avatar-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0 20px;}
+.avatar-opt{aspect-ratio:1;border-radius:14px;background:var(--card);border:2px solid transparent;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;}
+.avatar-opt.selected{border-color:var(--mint);background:rgba(51,217,178,.1);}
+.waiting{display:none;}
+.waiting.active{display:block;}
+.pin-display{font-family:'Baloo 2',sans-serif;font-size:15px;color:var(--muted);margin-bottom:4px;}
+.spinner{width:44px;height:44px;border:4px solid rgba(255,255,255,.1);border-top-color:var(--violet-2);border-radius:50%;margin:20px auto;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.wait-title{font-family:'Baloo 2',sans-serif;font-size:20px;font-weight:700;margin-bottom:4px;}
+.wait-sub{color:var(--muted);font-size:13px;}
+.you-avatar{width:64px;height:64px;border-radius:16px;background:var(--violet);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 14px;}
+.host-link{margin-top:22px;font-size:12px;color:var(--muted);}
+.host-link a{color:var(--sky);text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="card">
+    <div class="brand">Spark <span>Quiz</span></div>
+    <div class="tagline">English with Rida — live classroom quiz</div>
+
+    <div class="step active" id="stepPin">
+      <input type="text" id="pinInput" placeholder="Game PIN" maxlength="6" inputmode="numeric">
+      <div class="error" id="pinError"></div>
+      <button class="btn" id="pinBtn" onclick="submitPin()">Enter</button>
+    </div>
+
+    <div class="step" id="stepName">
+      <input type="text" id="nameInput" placeholder="Your nickname" maxlength="16">
+      <div class="error" id="nameError"></div>
+      <div style="font-size:12px;color:var(--muted);margin:6px 0 2px;text-align:left;">Pick an avatar</div>
+      <div class="avatar-grid" id="avatarGrid"></div>
+      <button class="btn" id="nameBtn" onclick="submitName()">Join game</button>
+    </div>
+
+    <div class="waiting" id="stepWaiting">
+      <div class="you-avatar" id="youAvatar">🦊</div>
+      <div class="wait-title" id="youName">You're in!</div>
+      <div class="pin-display">Game PIN: <span id="pinShown"></span></div>
+      <div class="spinner"></div>
+      <div class="wait-sub" id="waitSub">Waiting for your teacher to start the game…</div>
+    </div>
+
+    <div class="host-link" id="hostLink">Hosting a game? <a href="/host.html">Open host view →</a></div>
+  </div>
+</div>
+
+<script>
+const avatars=['🦊','🐸','🐼','🦁','🐨','🐙','🦉','🐧'];
+let selectedAvatar=avatars[0];
+let enteredPin='';
+let playerToken=null;
+let ws=null;
+
+function renderAvatars(){
+  const grid=document.getElementById('avatarGrid');
+  grid.innerHTML='';
+  avatars.forEach(a=>{
+    const el=document.createElement('div');
+    el.className='avatar-opt'+(a===selectedAvatar?' selected':'');
+    el.textContent=a;
+    el.onclick=()=>{ selectedAvatar=a; renderAvatars(); };
+    grid.appendChild(el);
+  });
+}
+renderAvatars();
+
+async function submitPin(){
+  const val=document.getElementById('pinInput').value.trim();
+  const err=document.getElementById('pinError');
+  const btn=document.getElementById('pinBtn');
+  if(!/^\d{6}$/.test(val)){
+    err.textContent='Enter the 6-digit PIN your teacher shared.';
+    return;
+  }
+  btn.disabled=true; btn.textContent='Checking…';
+  try{
+    const res=await fetch('/api/sessions/'+val);
+    if(!res.ok){
+      const body=await res.json().catch(()=>({}));
+      err.textContent = body.error==='already_started' ? 'This game already started.' : 'Game not found. Check the PIN.';
+      btn.disabled=false; btn.textContent='Enter';
+      return;
+    }
+    err.textContent='';
+    enteredPin=val;
+    document.getElementById('stepPin').classList.remove('active');
+    document.getElementById('stepName').classList.add('active');
+    document.getElementById('hostLink').style.display='none';
+  }catch(e){
+    err.textContent='Could not reach the server. Try again.';
+  }
+  btn.disabled=false; btn.textContent='Enter';
+}
+
+async function submitName(){
+  const val=document.getElementById('nameInput').value.trim();
+  const err=document.getElementById('nameError');
+  const btn=document.getElementById('nameBtn');
+  if(val.length<2){
+    err.textContent='Enter a nickname (at least 2 characters).';
+    return;
+  }
+  btn.disabled=true; btn.textContent='Joining…';
+  try{
+    const res=await fetch('/api/sessions/'+enteredPin+'/players',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({nickname:val, avatar:selectedAvatar}),
+    });
+    const body=await res.json();
+    if(!res.ok){
+      err.textContent = body.error==='already_started' ? 'This game already started.' : 'Could not join. Try again.';
+      btn.disabled=false; btn.textContent='Join game';
+      return;
+    }
+    playerToken=body.playerToken;
+    err.textContent='';
+    document.getElementById('stepName').classList.remove('active');
+    document.getElementById('stepWaiting').classList.add('active');
+    document.getElementById('youAvatar').textContent=selectedAvatar;
+    document.getElementById('youName').textContent=val+', you\'re in!';
+    document.getElementById('pinShown').textContent=enteredPin;
+    connectSocket();
+  }catch(e){
+    err.textContent='Could not reach the server. Try again.';
+    btn.disabled=false; btn.textContent='Join game';
+  }
+}
+
+function connectSocket(){
+  const proto = location.protocol==='https:' ? 'wss' : 'ws';
+  ws=new WebSocket(proto+'://'+location.host+'/ws');
+  ws.onopen=()=>{
+    ws.send(JSON.stringify({type:'join_channel', role:'player', pin:enteredPin, playerToken}));
+  };
+  ws.onmessage=(evt)=>{
+    const msg=JSON.parse(evt.data);
+    if(msg.type==='question_started'){
+      sessionStorage.setItem('spark_pin', enteredPin);
+      sessionStorage.setItem('spark_token', playerToken);
+      sessionStorage.setItem('spark_avatar', selectedAvatar);
+      window.location.href='/play.html';
+    }
+  };
+}
+</script>
+</body>
+</html>

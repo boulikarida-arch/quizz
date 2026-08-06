@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spark Quiz — Admin</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap');
+:root{
+  --ink:#14132A; --panel:#1D1B3A; --card:#242145; --violet:#6C4CE0; --violet-2:#8B72F0;
+  --gold:#F5C518; --coral:#FF5C72; --mint:#33D9B2; --sky:#3AB0FF; --cloud:#F7F5FF; --muted:#A6A2C8; --line:rgba(255,255,255,.09);
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Poppins',sans-serif;background:var(--ink);color:var(--cloud);}
+.wrap{display:flex;min-height:100vh;max-width:1180px;margin:0 auto;}
+.sidebar{width:280px;flex-shrink:0;background:var(--panel);padding:24px 16px;border-right:1px solid var(--line);}
+.brand{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:19px;margin-bottom:2px;}
+.brand span{color:var(--gold);}
+.sub{color:var(--muted);font-size:12px;margin-bottom:20px;}
+.qlist{display:flex;flex-direction:column;gap:6px;}
+.qitem{padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;align-items:center;border:1px solid transparent;}
+.qitem:hover{background:rgba(255,255,255,.04);}
+.qitem.active{background:rgba(108,76,224,.16);border-color:var(--violet-2);}
+.qnum{color:var(--muted);font-size:11px;margin-right:8px;}
+.qskill{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.sk-vocab{background:#8B72F0;} .sk-grammar{background:#3FC9A6;} .sk-reading{background:#4FB0F5;} .sk-listen{background:#F58A3F;}
+.addbtn{margin-top:14px;width:100%;padding:10px;border-radius:10px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.2);color:var(--cloud);font-weight:600;font-size:13px;cursor:pointer;}
+.main{flex:1;padding:28px 34px;}
+.toprow{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.pagetitle{font-family:'Baloo 2',sans-serif;font-size:22px;font-weight:700;}
+.savebar{display:flex;gap:10px;}
+.btn{padding:10px 18px;border-radius:10px;border:none;font-weight:600;font-size:13px;cursor:pointer;font-family:'Poppins',sans-serif;}
+.btn-primary{background:var(--violet);color:#fff;}
+.btn-ghost{background:rgba(255,255,255,.06);color:var(--cloud);border:1px solid rgba(255,255,255,.15);}
+.btn-danger{background:rgba(255,92,114,.12);color:var(--coral);border:1px solid rgba(255,92,114,.3);}
+#statusMsg{font-size:12px;color:var(--mint);margin-bottom:14px;display:none;}
+.field-label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;display:block;}
+.meta-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px;}
+select,input[type=text],input[type=number],textarea{
+  width:100%;background:var(--card);border:1px solid var(--line);color:var(--cloud);border-radius:10px;
+  padding:10px 12px;font-family:'Poppins',sans-serif;font-size:14px;}
+textarea{resize:vertical;min-height:56px;}
+select:focus,input:focus,textarea:focus{outline:none;border-color:var(--violet-2);}
+.qbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:20px;}
+.answers-edit{display:flex;flex-direction:column;gap:10px;margin-top:8px;}
+.answer-row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;}
+.answer-row.is-correct{border-color:var(--mint);background:rgba(51,217,178,.08);}
+.dot{width:20px;height:20px;border-radius:6px;flex-shrink:0;}
+.a-vocab{background:#7A5CE8;} .a-grammar{background:#3FC9A6;} .a-reading{background:#4FB0F5;} .a-listen{background:#F58A3F;}
+.answer-row input[type=text]{flex:1;background:transparent;border:none;color:var(--cloud);font-size:14px;padding:4px 0;}
+.answer-row input[type=text]:focus{outline:none;}
+.correct-toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap;}
+.correct-toggle input{accent-color:var(--mint);}
+.row-actions{display:flex;gap:6px;}
+.icon-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 6px;}
+.icon-btn:hover{color:var(--coral);}
+.section-title{font-size:14px;font-weight:600;margin:20px 0 8px;color:var(--cloud);}
+.help{font-size:12px;color:var(--muted);margin-top:6px;}
+.preview-note{font-size:12px;color:var(--muted);margin-top:18px;text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="sidebar">
+    <div class="brand">Spark <span>Quiz</span></div>
+    <div class="sub">Question bank</div>
+    <div class="qlist" id="qlist"></div>
+    <button class="addbtn" onclick="addQuestion()">+ Add question</button>
+  </div>
+
+  <div class="main">
+    <div class="toprow">
+      <div class="pagetitle">Edit question</div>
+      <div class="savebar">
+        <button class="btn btn-danger" id="deleteBtn" onclick="deleteQuestion()">Delete</button>
+        <button class="btn btn-ghost" onclick="cancelEdit()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveQuestion()">Save changes</button>
+      </div>
+    </div>
+    <div id="statusMsg"></div>
+
+    <div class="meta-grid">
+      <div>
+        <label class="field-label">Unit</label>
+        <select id="unitSelect"><option>Unit 1</option><option>Unit 2</option><option>Unit 3</option><option>Unit 4</option><option>Unit 5</option><option>Unit 6</option></select>
+      </div>
+      <div>
+        <label class="field-label">Lesson</label>
+        <select id="lessonSelect"><option>Lesson 1</option><option>Lesson 2</option><option>Lesson 3</option><option>Lesson 4</option><option>Lesson 5</option><option>Lesson 6</option><option>Lesson 7</option><option>Lesson 8</option></select>
+      </div>
+      <div>
+        <label class="field-label">Skill</label>
+        <select id="skillSelect"><option value="vocab">Vocabulary</option><option value="grammar">Grammar</option><option value="reading">Reading</option><option value="listen">Listening</option></select>
+      </div>
+    </div>
+
+    <div class="qbox">
+      <label class="field-label">Question text</label>
+      <textarea id="questionText"></textarea>
+      <label class="field-label" style="margin-top:16px;">Time limit (seconds)</label>
+      <input type="number" id="timeLimit" value="20" style="max-width:120px;">
+    </div>
+
+    <div class="section-title">Answers</div>
+    <div class="answers-edit" id="answersEdit"></div>
+    <button class="addbtn" style="margin-top:12px;" onclick="addAnswerRow()">+ Add answer</button>
+    <div class="help">Exactly one answer should be marked correct.</div>
+    <div class="preview-note">Changes save to the live question bank used by new games.</div>
+  </div>
+</div>
+
+<script>
+const skillDotClass={vocab:'a-vocab',grammar:'a-grammar',reading:'a-reading',listen:'a-listen'};
+let questions=[];
+let currentIndex=0;
+
+async function loadQuestions(){
+  const res=await fetch('/api/questions');
+  questions=await res.json();
+  renderList();
+  loadQuestion(0);
+}
+
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+function renderList(){
+  const list=document.getElementById('qlist');
+  list.innerHTML='';
+  questions.forEach((q,i)=>{
+    const item=document.createElement('div');
+    item.className='qitem'+(i===currentIndex?' active':'');
+    item.onclick=()=>{ collectFormIntoQuestion(currentIndex); currentIndex=i; renderList(); loadQuestion(i); };
+    item.innerHTML='<span><span class="qnum">Q'+(i+1)+'</span>'+escapeHtml(q.text)+'</span><span class="qskill sk-'+q.skill+'"></span>';
+    list.appendChild(item);
+  });
+}
+
+function loadQuestion(i){
+  const q=questions[i];
+  document.getElementById('unitSelect').value=q.unit;
+  document.getElementById('lessonSelect').value=q.lesson;
+  document.getElementById('skillSelect').value=q.skill;
+  document.getElementById('questionText').value=q.text;
+  document.getElementById('timeLimit').value=q.time;
+  renderAnswers(q);
+}
+
+function renderAnswers(q){
+  const wrap=document.getElementById('answersEdit');
+  wrap.innerHTML='';
+  q.answers.forEach((a)=>{
+    const row=document.createElement('div');
+    row.className='answer-row'+(a.correct?' is-correct':'');
+    row.innerHTML='<div class="dot '+(skillDotClass[q.skill]||'')+'"></div>'+
+      '<input type="text" value="'+escapeHtml(a.text)+'">'+
+      '<label class="correct-toggle"><input type="checkbox" '+(a.correct?'checked':'')+' onchange="markCorrect(this)"> correct</label>'+
+      '<div class="row-actions"><button class="icon-btn" title="Remove answer" onclick="removeAnswer(this)">✕</button></div>';
+    wrap.appendChild(row);
+  });
+}
+
+function collectFormIntoQuestion(i){
+  const q=questions[i];
+  q.unit=document.getElementById('unitSelect').value;
+  q.lesson=document.getElementById('lessonSelect').value;
+  q.skill=document.getElementById('skillSelect').value;
+  q.text=document.getElementById('questionText').value;
+  q.time=parseInt(document.getElementById('timeLimit').value)||20;
+  const rows=document.querySelectorAll('#answersEdit .answer-row');
+  q.answers=Array.from(rows).map(row=>({
+    text:row.querySelector('input[type=text]').value,
+    correct:row.querySelector('input[type=checkbox]').checked,
+  }));
+}
+
+function showStatus(msg,color){
+  const el=document.getElementById('statusMsg');
+  el.textContent=msg;
+  el.style.color=color||'var(--mint)';
+  el.style.display='block';
+  clearTimeout(showStatus._t);
+  showStatus._t=setTimeout(()=>{ el.style.display='none'; },2200);
+}
+
+function cancelEdit(){
+  loadQuestion(currentIndex);
+  showStatus('Changes discarded.','var(--muted)');
+}
+
+async function saveQuestion(){
+  collectFormIntoQuestion(currentIndex);
+  renderList();
+  const res=await fetch('/api/questions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(questions)});
+  if(res.ok) showStatus('Question saved to the live bank.');
+  else showStatus('Save failed — try again.','var(--coral)');
+}
+
+function deleteQuestion(){
+  if(questions.length<=1){ showStatus('Keep at least one question.','var(--coral)'); return; }
+  const btn=document.getElementById('deleteBtn');
+  if(btn.dataset.armed!=='true'){
+    btn.dataset.armed='true'; btn.textContent='Confirm delete?';
+    showStatus('Click Delete again to confirm.','var(--coral)');
+    setTimeout(()=>{ btn.dataset.armed='false'; btn.textContent='Delete'; },3000);
+    return;
+  }
+  btn.dataset.armed='false'; btn.textContent='Delete';
+  questions.splice(currentIndex,1);
+  currentIndex=Math.max(0,currentIndex-1);
+  renderList(); loadQuestion(currentIndex);
+  fetch('/api/questions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(questions)});
+  showStatus('Question deleted.','var(--coral)');
+}
+
+function addQuestion(){
+  questions.push({id:'q'+Date.now(),unit:'Unit 1',lesson:'Lesson 1',skill:'vocab',text:'New question',time:20,image:null,
+    answers:[{text:'answer 1',correct:true},{text:'answer 2',correct:false}]});
+  currentIndex=questions.length-1;
+  renderList(); loadQuestion(currentIndex);
+}
+
+function markCorrect(checkbox){
+  document.querySelectorAll('#answersEdit .answer-row').forEach(row=>{
+    row.classList.remove('is-correct');
+    const cb=row.querySelector('input[type=checkbox]');
+    if(cb!==checkbox) cb.checked=false;
+  });
+  if(checkbox.checked) checkbox.closest('.answer-row').classList.add('is-correct');
+}
+function removeAnswer(btn){
+  const row=btn.closest('.answer-row');
+  if(document.querySelectorAll('#answersEdit .answer-row').length<=2){
+    showStatus('A question needs at least two answers.','var(--coral)');
+    return;
+  }
+  row.remove();
+}
+function addAnswerRow(){
+  const container=document.getElementById('answersEdit');
+  const row=document.createElement('div');
+  row.className='answer-row';
+  row.innerHTML='<div class="dot" style="background:var(--muted)"></div>'+
+    '<input type="text" value="" placeholder="New answer">'+
+    '<label class="correct-toggle"><input type="checkbox" onchange="markCorrect(this)"> correct</label>'+
+    '<div class="row-actions"><button class="icon-btn" title="Remove answer" onclick="removeAnswer(this)">✕</button></div>';
+  container.appendChild(row);
+}
+
+loadQuestions();
+</script>
+</body>
+</html>
