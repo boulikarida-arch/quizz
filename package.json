@@ -1,0 +1,13 @@
+{
+  "name": "spark-quiz",
+  "version": "1.0.0",
+  "description": "Spark Quiz - live classroom quiz website for English with Rida",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  }
+}
